@@ -35,7 +35,7 @@ The application uses **JsonPowerDB** as its backend database, storing data in th
 3. **Fastest NoSQL Database** – Offers lightning-fast query response times.
 4. **Built-in RESTful API** – No need to write backend code; direct API calls from the browser.
 5. **Schema-Free with Flexibility** – Easy to add or modify fields without migrations.
-6. **Key-Value Pair Support** – Simple data retrieval using primary keys.
+6. **Fast Key-Based Retrieval** – Quick data lookup using GET_BY_KEY command with indexed fields.
 7. **Supports Multiple Commands** – PUT, GET, GET_BY_KEY, UPDATE, DELETE, and more.
 8. **Cross-Platform** – Works seamlessly with HTML, JavaScript, and other web technologies.
 9. **Low Latency** – Real-time data updates with minimal delay.
