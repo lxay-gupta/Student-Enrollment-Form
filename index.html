@@ -1,0 +1,295 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Student Enrollment Form</title>
+
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
+    <script src="config.js"></script>
+
+    <style type="text/css">
+        * { box-sizing: border-box; }
+        body { font-family: 'Segoe UI', Arial, sans-serif; background: #eef2f7; margin: 0; padding: 30px; }
+        h1 { text-align: center; color: #1f3a68; margin-bottom: 25px; }
+        .form-container { max-width: 560px; margin: 0 auto; background: #fff; padding: 30px 35px; border-radius: 10px; box-shadow: 0 4px 18px rgba(0,0,0,0.08); }
+        .field { margin-bottom: 16px; display: flex; flex-direction: column; }
+        .field label { font-weight: 600; color: #333; margin-bottom: 5px; }
+        .field input, .field textarea { padding: 9px 11px; border: 1px solid #c5cdd8; border-radius: 6px; font-size: 15px; outline: none; }
+        .field input:focus:not(:disabled), .field textarea:focus:not(:disabled) { border-color: #2d6cdf; box-shadow: 0 0 0 2px rgba(45,108,223,0.15); }
+        .field input:disabled, .field textarea:disabled { background: #f2f4f7; color: #888; }
+        .buttons { margin-top: 22px; display: flex; justify-content: space-between; gap: 10px; }
+        .buttons button { flex: 1; padding: 10px; font-size: 15px; font-weight: 600; border: none; border-radius: 6px; cursor: pointer; color: #fff; }
+        .buttons button:disabled { opacity: 0.45; cursor: not-allowed; }
+        #saveBtn { background: #28a745; }
+        #updateBtn { background: #ffc107; color: #333; }
+        #resetBtn { background: #6c757d; }
+        #status { margin-top: 18px; text-align: center; font-weight: 600; min-height: 22px; word-wrap: break-word; }
+        .ok { color: #28a745; }
+        .err { color: #c0392b; }
+        .hint { text-align: center; color: #666; font-size: 13px; margin-top: 6px; }
+    </style>
+</head>
+<body>
+
+    <h1>Student Enrollment Form</h1>
+
+    <div class="form-container">
+        <form id="enrollForm" autocomplete="off">
+            <div class="field">
+                <label for="roll_no">Roll-No <span style="color:#c0392b">*</span></label>
+                <input type="text" id="roll_no">
+                <div class="hint">Press <b>Enter</b> after typing to check availability</div>
+            </div>
+            <div class="field">
+                <label for="full_name">Full-Name <span style="color:#c0392b">*</span></label>
+                <input type="text" id="full_name" disabled>
+            </div>
+            <div class="field">
+                <label for="class">Class <span style="color:#c0392b">*</span></label>
+                <input type="text" id="class" disabled>
+            </div>
+            <div class="field">
+                <label for="birth_date">Birth-Date <span style="color:#c0392b">*</span></label>
+                <input type="date" id="birth_date" disabled>
+            </div>
+            <div class="field">
+                <label for="address">Address <span style="color:#c0392b">*</span></label>
+                <textarea id="address" rows="2" disabled></textarea>
+            </div>
+            <div class="field">
+                <label for="enrollment_date">Enrollment-Date <span style="color:#c0392b">*</span></label>
+                <input type="date" id="enrollment_date" disabled>
+            </div>
+            <div class="buttons">
+                <button type="button" id="saveBtn" disabled>Save</button>
+                <button type="button" id="updateBtn" disabled>Update</button>
+                <button type="button" id="resetBtn" disabled>Reset</button>
+            </div>
+            <div id="status"></div>
+        </form>
+    </div>
+
+    <script>
+        const rollNo = document.getElementById('roll_no');
+        const fullName = document.getElementById('full_name');
+        const cls = document.getElementById('class');
+        const birthDate = document.getElementById('birth_date');
+        const address = document.getElementById('address');
+        const enrollDate = document.getElementById('enrollment_date');
+        const saveBtn = document.getElementById('saveBtn');
+        const updateBtn = document.getElementById('updateBtn');
+        const resetBtn = document.getElementById('resetBtn');
+        const status = document.getElementById('status');
+        const otherFields = [fullName, cls, birthDate, address, enrollDate];
+
+        let currentRecNo = null;
+
+        function resetToInitial() {
+            rollNo.value = '';
+            currentRecNo = null;
+            otherFields.forEach(function(f) { f.value = ''; f.disabled = true; });
+            saveBtn.disabled = true;
+            updateBtn.disabled = true;
+            resetBtn.disabled = true;
+            rollNo.disabled = false;
+            rollNo.focus();
+            status.textContent = '';
+            status.className = '';
+        }
+
+        function showStatus(msg, isError) {
+            status.textContent = msg;
+            status.className = isError ? 'err' : 'ok';
+        }
+
+        function validateForm() {
+            const fields = [rollNo, fullName, cls, birthDate, address, enrollDate];
+            const labels = ['Roll-No', 'Full-Name', 'Class', 'Birth-Date', 'Address', 'Enrollment-Date'];
+            for (let i = 0; i < fields.length; i++) {
+                const val = fields[i].value;
+                if (!val || !val.trim()) {
+                    showStatus('Please fill in: ' + labels[i], true);
+                    fields[i].focus();
+                    return false;
+                }
+            }
+            return true;
+        }
+
+        rollNo.addEventListener('keydown', function(e) {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                if (!rollNo.value || !rollNo.value.trim()) {
+                    showStatus('Please enter Roll-No first', true);
+                    return;
+                }
+                checkRollNo();
+            }
+        });
+
+        function checkRollNo() {
+            const rollVal = String(rollNo.value || "").trim();
+            
+            const requestObj = {
+                token: JPDB_CONFIG.token,
+                cmd: "GET_BY_KEY",
+                dbName: JPDB_CONFIG.dbName,
+                rel: JPDB_CONFIG.relName,
+                jsonStr: { "Roll-No": rollVal } 
+            };
+            
+            jQuery.ajax({
+                url: JPDB_CONFIG.baseUrl + '/api/irl',
+                type: 'POST',
+                contentType: 'text/plain',
+                data: JSON.stringify(requestObj),
+                dataType: 'json',
+                async: false,
+                success: function(response) {
+                    if (response && (response.status === 200 || response.status === "200")) {
+                        let data = response.data;
+                        
+                        if (typeof data === 'string') {
+                            try { data = JSON.parse(data); } catch (e) {}
+                        }
+                        
+                        let recordFound = false;
+                        let recordData = null;
+                        
+                        if (data && data.rec_no && data.record) {
+                            recordFound = true;
+                            recordData = data.record;
+                            currentRecNo = parseInt(data.rec_no, 10);
+                        } else if (Array.isArray(data) && data.length > 0) {
+                            if (data[0].record) {
+                                recordFound = true;
+                                recordData = data[0].record;
+                                currentRecNo = parseInt(data[0].rec_no, 10);
+                            }
+                        }
+                        
+                        if (recordFound && recordData) {
+                            fullName.value   = recordData["Full-Name"] || '';
+                            cls.value        = recordData["Class"] || '';
+                            birthDate.value  = recordData["Birth-Date"] || '';
+                            address.value    = recordData["Address"] || '';
+                            enrollDate.value = recordData["Enrollment-Date"] || '';
+
+                            rollNo.disabled = true;
+                            otherFields.forEach(function(f) { f.disabled = false; });
+                            saveBtn.disabled = true;
+                            updateBtn.disabled = false;
+                            resetBtn.disabled = false;
+
+                            showStatus('Record found. You may update the details.', false);
+                            fullName.focus();
+                            return;
+                        }
+                    }
+                    
+                    currentRecNo = null;
+                    otherFields.forEach(function(f) { f.disabled = false; });
+                    saveBtn.disabled = false;
+                    updateBtn.disabled = true;
+                    resetBtn.disabled = false;
+                    showStatus('New Roll-No. Please fill in the remaining details.', false);
+                    fullName.focus();
+                },
+                error: function() {
+                    showStatus('Error checking Roll-No', true);
+                }
+            });
+        }
+
+        saveBtn.addEventListener('click', function() {
+            if (!validateForm()) return;
+
+            const docObj = {
+                "Roll-No": String(rollNo.value || "").trim(),
+                "Full-Name": String(fullName.value || "").trim(),
+                "Class": String(cls.value || "").trim(),
+                "Birth-Date": String(birthDate.value || "").trim(),
+                "Address": String(address.value || "").trim(),
+                "Enrollment-Date": String(enrollDate.value || "").trim()
+            };
+            
+            const requestObj = {
+                token: JPDB_CONFIG.token,
+                cmd: "PUT",
+                dbName: JPDB_CONFIG.dbName,
+                rel: JPDB_CONFIG.relName,
+                jsonStr: docObj
+            };
+
+            jQuery.ajax({
+                url: JPDB_CONFIG.baseUrl + '/api/iml',
+                type: 'POST',
+                contentType: 'text/plain',
+                data: JSON.stringify(requestObj),
+                dataType: 'json',
+                async: false,
+                success: function(response) {
+                    if (response && (response.status === 200 || response.status === "200")) {
+                        showStatus('Record saved successfully', false);
+                        setTimeout(resetToInitial, 1500);
+                    } else {
+                        showStatus('Save failed: ' + (response ? (response.message || response.msg) : 'No response'), true);
+                    }
+                },
+                error: function() {
+                    showStatus('Error saving record', true);
+                }
+            });
+        });
+
+        updateBtn.addEventListener('click', function() {
+            if (!validateForm()) return;
+            
+            if (currentRecNo === null || isNaN(currentRecNo)) {
+                showStatus('Error: No record loaded to update', true);
+                return;
+            }
+
+            const updatePayload = {};
+            updatePayload[currentRecNo] = {
+                "Full-Name": String(fullName.value || "").trim(),
+                "Class": String(cls.value || "").trim(),
+                "Birth-Date": String(birthDate.value || "").trim(),
+                "Address": String(address.value || "").trim(),
+                "Enrollment-Date": String(enrollDate.value || "").trim()
+            };
+
+            const requestObj = {
+                token: JPDB_CONFIG.token,
+                cmd: "UPDATE",
+                dbName: JPDB_CONFIG.dbName,
+                rel: JPDB_CONFIG.relName,
+                jsonStr: updatePayload
+            };
+
+            jQuery.ajax({
+                url: JPDB_CONFIG.baseUrl + '/api/iml',
+                type: 'POST',
+                contentType: 'text/plain',
+                data: JSON.stringify(requestObj),
+                dataType: 'json',
+                async: false,
+                success: function(response) {
+                    if (response && (response.status === 200 || response.status === "200")) {
+                        showStatus('Record updated successfully', false);
+                        setTimeout(resetToInitial, 1500);
+                    } else {
+                        showStatus('Update failed: ' + (response ? (response.message || response.msg) : 'No response'), true);
+                    }
+                },
+                error: function() {
+                    showStatus('Error updating record', true);
+                }
+            });
+        });
+
+        resetBtn.addEventListener('click', resetToInitial);
+        window.addEventListener('DOMContentLoaded', resetToInitial);
+    </script>
+</body>
+</html>
